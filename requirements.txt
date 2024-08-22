@@ -1,5 +1,5 @@
 peewee~=3.17.6
 pytelegrambotapi~=4.22.1
 requests~=2.32.3
-telegram-bot-calendar~=1.0.5
+python-telegram-bot-calendar~=1.0.5
 python-dotenv~=1.0.1
