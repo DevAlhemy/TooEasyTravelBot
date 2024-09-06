@@ -22,7 +22,7 @@ from settings.constants import (
 from settings.loader import (
     bot,
     QUERY_LOCATION,
-    QUERY_HOTEL_LOW,
+    QUERY_HOTEL_RATE,
     URL_HOTEL,
     HEADERS,
     QUERY_PHOTO,
@@ -32,15 +32,15 @@ from settings.loader import (
 import requests
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 from datetime import date, timedelta, datetime
-from handlers.history import save_query
+from database.database import save_query
 
 
 user_data = {}
 
 
-def search_city_low(message):
+def search_city_rate(message):
     QUERY_LOCATION["text"] = str(message.text)
-
+    chat_id = message.chat.id
     try:
         response = requests.get(URL_LOCATION, headers=HEADERS, params=QUERY_LOCATION)
         response.raise_for_status()
@@ -54,7 +54,6 @@ def search_city_low(message):
 
         town_loc = dict(zip(city_list, dest_id))
 
-        chat_id = message.chat.id
         if chat_id not in user_data:
             user_data[chat_id] = {}
         user_data[chat_id]["town_loc"] = town_loc
@@ -62,50 +61,50 @@ def search_city_low(message):
         key = InlineKeyboardMarkup(row_width=1)
         for loc in town_loc:
             key_city = InlineKeyboardButton(
-                loc, callback_data="city_low" + town_loc[loc]
+                loc, callback_data="city_rate" + town_loc[loc]
             )
             key.add(key_city)
 
-        bot.send_message(message.chat.id, CORRECTION, reply_markup=key)
+        bot.send_message(chat_id, CORRECTION, reply_markup=key)
     except requests.RequestException:
-        bot.send_message(message.chat.id, ERROR_CITY)
+        bot.send_message(chat_id, ERROR_CITY)
     except Exception:
-        bot.send_message(message.chat.id, ERROR_UN)
+        bot.send_message(chat_id, ERROR_UN)
 
 
-def city_name_low(message):
+def city_name_rate(message):
     chat_id = message.chat.id
     if chat_id not in user_data:
         user_data[chat_id] = {}
     user_data[chat_id]["city_input"] = message.text
-    search_city_low(message)
+    search_city_rate(message)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("city_low"))
-def callback_arrival_low(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith("city_rate"))
+def callback_arrival_rate(call):
     chat_id = call.message.chat.id
     if chat_id not in user_data:
         user_data[chat_id] = {}
-    user_data[chat_id]["dest_id"] = str(call.data[len("city_low") :])
+    user_data[chat_id]["dest_id"] = str(call.data[len("city_rate"):])
     town_loc = user_data[chat_id].get("town_loc", {})
     user_data[chat_id]["city_name"] = next(
         key for key, value in town_loc.items() if value == user_data[chat_id]["dest_id"]
     )
     calendar, step = DetailedTelegramCalendar(
-        calendar_id="Alow", min_date=date.today()
+        calendar_id="Arate", min_date=date.today()
     ).build()
     bot.send_message(chat_id, ARRIVAL_DATE)
     bot.send_message(chat_id, f"Select {LSTEP[step]}: ", reply_markup=calendar)
 
 
 @bot.callback_query_handler(
-    func=lambda call: DetailedTelegramCalendar.func(calendar_id="Alow")(call)
+    func=lambda call: DetailedTelegramCalendar.func(calendar_id="Arate")(call)
 )
-def handle_arrival_date_selection_low(call):
+def handle_arrival_date_selection_rate(call):
     chat_id = call.message.chat.id
     try:
         result, key, step = DetailedTelegramCalendar(
-            calendar_id="Alow", min_date=date.today()
+            calendar_id="Arate", min_date=date.today()
         ).process(call.data)
         if not result and key:
             bot.edit_message_text(
@@ -125,7 +124,7 @@ def handle_arrival_date_selection_low(call):
                 user_data[chat_id]["arrival_date"], "%Y-%m-%d"
             ).date() + timedelta(days=1)
             calendar, step = DetailedTelegramCalendar(
-                calendar_id="Dlow", min_date=min_date
+                calendar_id="Drate", min_date=min_date
             ).build()
             bot.send_message(chat_id, "Select departure date:")
             bot.send_message(chat_id, f"Select {LSTEP[step]}: ", reply_markup=calendar)
@@ -134,16 +133,16 @@ def handle_arrival_date_selection_low(call):
 
 
 @bot.callback_query_handler(
-    func=lambda call: DetailedTelegramCalendar.func(calendar_id="Dlow")(call)
+    func=lambda call: DetailedTelegramCalendar.func(calendar_id="Drate")(call)
 )
-def handle_departure_date_selection_low(call):
+def handle_departure_date_selection_rate(call):
     chat_id = call.message.chat.id
     try:
         min_date = datetime.strptime(
             user_data[chat_id]["arrival_date"], "%Y-%m-%d"
         ).date() + timedelta(days=1)
         result, key, step = DetailedTelegramCalendar(
-            calendar_id="Dlow", min_date=min_date
+            calendar_id="Drate", min_date=min_date
         ).process(call.data)
         if not result and key:
             bot.edit_message_text(
@@ -159,34 +158,34 @@ def handle_departure_date_selection_low(call):
                 chat_id,
                 call.message.message_id,
             )
-            count_hotel_low(call.message)
+            count_hotel_rate(call.message)
     except Exception:
         bot.send_message(chat_id, ERROR_UN)
 
 
-def count_hotel_low(message):
+def count_hotel_rate(message):
     chat_id = message.chat.id
     key = ReplyKeyboardMarkup(row_width=5, one_time_keyboard=True, resize_keyboard=True)
     for num in range(1, 11):
         key.add(KeyboardButton(str(num)))
     msg = bot.send_message(chat_id, COUNT_HOTEL, reply_markup=key)
-    bot.register_next_step_handler(msg, process_hotel_count_low)
+    bot.register_next_step_handler(msg, process_hotel_count_rate)
 
 
-def process_hotel_count_low(message):
+def process_hotel_count_rate(message):
     chat_id = message.chat.id
     try:
         hotel_count = int(message.text)
         user_data[chat_id]["hotel_count"] = hotel_count
-        search_hotel_low(message)
+        search_hotel_rate(message)
     except ValueError:
         msg = bot.send_message(chat_id, ERROR_VALUE)
-        bot.register_next_step_handler(msg, process_hotel_count_low)
+        bot.register_next_step_handler(msg, process_hotel_count_rate)
     except Exception:
         bot.send_message(chat_id, ERROR_UN)
 
 
-def search_hotel_low(message):
+def search_hotel_rate(message):
     chat_id = message.chat.id
 
     dest_id = user_data[chat_id].get("dest_id")
@@ -196,12 +195,12 @@ def search_hotel_low(message):
     city_name = user_data[chat_id].get("city_name")
 
     if dest_id and arrival_date and departure_date:
-        QUERY_HOTEL_LOW["dest_ids"] = dest_id
-        QUERY_HOTEL_LOW["arrival_date"] = arrival_date
-        QUERY_HOTEL_LOW["departure_date"] = departure_date
+        QUERY_HOTEL_RATE["dest_ids"] = dest_id
+        QUERY_HOTEL_RATE["arrival_date"] = arrival_date
+        QUERY_HOTEL_RATE["departure_date"] = departure_date
 
         try:
-            response = requests.get(URL_HOTEL, headers=HEADERS, params=QUERY_HOTEL_LOW)
+            response = requests.get(URL_HOTEL, headers=HEADERS, params=QUERY_HOTEL_RATE)
             response.raise_for_status()
             hotels = response.json()
 
@@ -215,7 +214,7 @@ def search_hotel_low(message):
                 key = InlineKeyboardMarkup(row_width=1)
                 key_url = InlineKeyboardButton(KEY_URL, url=hotel["url"])
                 key_photo = InlineKeyboardButton(
-                    KEY_PHOTO, callback_data="photo_low" + str(hotel["hotel_id"])
+                    KEY_PHOTO, callback_data="photo_rate" + str(hotel["hotel_id"])
                 )
                 key.add(key_url)
                 key.add(key_photo)
@@ -244,7 +243,7 @@ def search_hotel_low(message):
                 hotel_count=hotel_count,
                 arrival_date=arrival_date,
                 departure_date=departure_date,
-                query_dict=QUERY_HOTEL_LOW,
+                query_dict=QUERY_HOTEL_RATE,
             )
 
         except requests.RequestException:
@@ -255,11 +254,11 @@ def search_hotel_low(message):
         bot.send_message(chat_id, REPEAT_FIND)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("photo_low"))
-def handle_photo_low(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith("photo_rate"))
+def handle_photo_rate(call):
     photos = []
     chat_id = call.message.chat.id
-    QUERY_PHOTO["hotel_ids"] = str(call.data[len("photo_low") :])
+    QUERY_PHOTO["hotel_ids"] = str(call.data[len("photo_rate"):])
     try:
         response = requests.get(URL_PHOTO, headers=HEADERS, params=QUERY_PHOTO)
         response.raise_for_status()

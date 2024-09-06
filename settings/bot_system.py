@@ -10,10 +10,10 @@ from .constants import (
     CITY,
 )
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-from handlers.lowprice import city_name_low
-from handlers.bestdeal import city_name_dist
-from handlers.rating import city_name_rate
-from handlers.history import show_history
+from utils.lowprice import city_name_low
+from utils.bestdeal import city_name_dist
+from utils.rating import city_name_rate
+from utils.history import show_history
 from .loader import bot
 
 

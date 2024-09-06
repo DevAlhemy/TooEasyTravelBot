@@ -19,36 +19,6 @@ from settings.constants import (
 from settings.loader import URL_HOTEL, HEADERS
 
 
-def save_query(
-    chat_id,
-    city_name=None,
-    hotel_count=None,
-    arrival_date=None,
-    departure_date=None,
-    query_dict=None,
-):
-    query_json = json.dumps(query_dict) if query_dict else None
-
-    UserQuery.create(
-        chat_id=chat_id,
-        city_name=city_name,
-        hotel_count=hotel_count,
-        arrival_date=arrival_date,
-        departure_date=departure_date,
-        query=query_json,
-    )
-
-    user_queries = (
-        UserQuery.select()
-        .where(UserQuery.chat_id == chat_id)
-        .order_by(UserQuery.id.asc())
-    )
-    if user_queries.count() > 5:
-        excess_queries = user_queries.count() - 5
-        for query in user_queries.limit(excess_queries):
-            query.delete_instance()
-
-
 def show_history(message):
     chat_id = message.chat.id
 
@@ -95,7 +65,7 @@ def show_history(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("repeat_query_"))
 def handle_repeat_query(call):
     chat_id = call.message.chat.id
-    query_id = int(call.data[len("repeat_query_") :])
+    query_id = int(call.data[len("repeat_query_"):])
 
     try:
         query = UserQuery.get(UserQuery.id == query_id)

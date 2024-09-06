@@ -32,8 +32,7 @@ from settings.loader import (
 import requests
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 from datetime import date, timedelta, datetime
-from handlers.history import save_query
-
+from database.database import save_query
 
 user_data = {}
 
@@ -86,7 +85,7 @@ def callback_arrival_dist(call):
     chat_id = call.message.chat.id
     if chat_id not in user_data:
         user_data[chat_id] = {}
-    user_data[chat_id]["dest_id"] = str(call.data[len("city_dist") :])
+    user_data[chat_id]["dest_id"] = str(call.data[len("city_dist"):])
     town_loc = user_data[chat_id].get("town_loc", {})
     user_data[chat_id]["city_name"] = next(
         key for key, value in town_loc.items() if value == user_data[chat_id]["dest_id"]
@@ -259,7 +258,7 @@ def search_hotel_dist(message):
 def handle_photo_dist(call):
     photos = []
     chat_id = call.message.chat.id
-    QUERY_PHOTO["hotel_ids"] = str(call.data[len("photo_dist") :])
+    QUERY_PHOTO["hotel_ids"] = str(call.data[len("photo_dist"):])
     try:
         response = requests.get(URL_PHOTO, headers=HEADERS, params=QUERY_PHOTO)
         response.raise_for_status()
